@@ -1,0 +1,203 @@
+/*                                                                               
+Copyright (c) 2015 EPFL-BBP, All rights reserved.                                
+                                                                                 
+THIS SOFTWARE IS PROVIDED BY THE BLUE BRAIN PROJECT ``AS IS''                    
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,            
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR           
+PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE BLUE BRAIN PROJECT                 
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR           
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF             
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR                  
+BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,            
+WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE             
+OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN           
+IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.                                    
+                                                                                 
+This work is licensed under a 
+Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
+To view a copy of this license, visit 
+http://creativecommons.org/licenses/by-nc-sa/4.0/legalcode or send a letter to 
+Creative Commons, 
+171 Second Street, Suite 300, 
+San Francisco, California, 94105, USA.                 
+*/           
+
+/*                                                                               
+ * @file init.hoc                                                           
+ * @brief Initialisation                                
+ * @author Werner Van Geit @ BBP                                                 
+ * @date 2015                                                                    
+*/        
+
+//modified by Fabio Simoes de Souza @ UFABC, 2016
+
+//----------------------------------------------------------------------------
+//  define a panel to run the different demos
+//----------------------------------------------------------------------------
+
+load_file("nrngui.hoc")
+load_file("constants.hoc")
+load_file("creategui.hoc")
+load_file("createsimulation.hoc")
+
+
+// By default, enable synapses
+synapses_enabled = 1
+
+use_mcell_ran4(1) //MCell random number generator
+
+// Set up simulation
+
+create_cell(synapses_enabled,RANDOM_SEED,NUMBER_NEURONS) //create cells (100 pre_synaptic and 100 post_synaptic cells)
+
+
+//Move cell location
+XORIGIN0 = 0
+YORIGIN0 = 0
+ZORIGIN0 = 0
+
+XORIGIN1 = 0
+YORIGIN1 = -3000
+ZORIGIN1 = 0
+
+for i=0, NUMBER_NEURONS-1 {
+
+//Move cell location
+cell0[i].position(XORIGIN0+1000*i,YORIGIN0,ZORIGIN0)
+cell1[i].position(XORIGIN1+1000*i,YORIGIN1,ZORIGIN1)
+}
+
+
+// Start the GUI
+make_mainwindow(cell1[0])
+
+
+//Create Current Stimulus to Presynaptic neurons
+create_current_stimulus(NUMBER_NEURONS) 
+
+
+// Save the windows that already exist before this initialisation
+pwmcnt = PWManager[0].count
+
+
+//Create synapses
+objectvar sinapse0[1] //[NUMBER_NEURONS] //STDP1
+objectvar sinapse1[1] //[NUMBER_NEURONS] //STDP2
+objectvar sinapse2[1] //[NUMBER_NEURONS] //ExpSyn
+
+//parameters
+fator= 10 
+CONNECTION_THRESHOLD=0
+CONNECTION_DELAY=6.7 // ms
+CONNECTION_WEIGHT=fator*5e-6 // max conductance uS
+
+for i=0, NUMBER_NEURONS-1 {
+
+access cell1[i].apic(0.5)
+
+cell1[i].sinapse0[0]=new ExpSynSTDP_triplet(0)
+cell1[i].sinapse0[0].e=0
+cell1[i].sinapse0[0].tau=10
+cell1[i].sinapse0[0].factor=1e3//potentiation depotentiation factor
+cell1[i].sinapse0[0].gw=fator*5e-6 //uS max conductance
+
+cell1[i].sinapse1[0]=new ExpSynSTDP_triplet(0)
+cell1[i].sinapse1[0].e=0
+cell1[i].sinapse1[0].tau=10
+cell1[i].sinapse1[0].factor=1e3//potentiation depotentiation factor
+cell1[i].sinapse1[0].gw=fator*5e-6 //uS max conductance
+
+cell1[i].sinapse2[0]=new ExpSyn(0.5)
+cell1[i].sinapse2[0].tau=10
+cell1[i].sinapse2[0].e=0
+
+//STDP parameters (Pfister)
+cell1[i].sinapse0[0].A2mais=4.6e-3 /1
+cell1[i].sinapse0[0].A2menos=3e-3 /1
+cell1[i].sinapse0[0].A3mais=9.1e-3 /1
+cell1[i].sinapse0[0].A3menos=7.5e-9 /1
+cell1[i].sinapse0[0].Taumais=16.8
+cell1[i].sinapse0[0].Taumenos= 33.7
+cell1[i].sinapse0[0].Tauy=47
+cell1[i].sinapse0[0].Taux=575
+
+//STDP parameters (Abbott)
+cell1[i].sinapse1[0].A2mais=5e-3  /1
+cell1[i].sinapse1[0].A2menos=5.1e-3 /1
+cell1[i].sinapse1[0].A3mais=2e-4 /1
+cell1[i].sinapse1[0].A3menos=1e-3 /1
+cell1[i].sinapse1[0].Taumais=16.8
+cell1[i].sinapse1[0].Taumenos= 33.7
+cell1[i].sinapse1[0].Tauy=47
+cell1[i].sinapse1[0].Taux=575
+
+//synaptic connections
+access cell0[i].soma
+cell0[i].soma cell1[i].nclist.append(new NetCon(&cell0[i].soma.v(0.5),cell1[i].sinapse0[0],CONNECTION_THRESHOLD,CONNECTION_DELAY,CONNECTION_WEIGHT))
+
+cell0[i].soma cell1[i].nclist.append(new NetCon(&cell0[i].soma.v(0.5),cell1[i].sinapse1[0],CONNECTION_THRESHOLD,CONNECTION_DELAY,CONNECTION_WEIGHT))
+}
+
+//Show results
+objref grafico[7]
+
+grafico[0]=new Graph()
+grafico[0].size(0,tmax ,-100,50)
+grafico[0].beginline()
+grafico[0].addvar("Pre",&cell0[0].soma.v(0.5),1,1)
+grafico[0].addvar("Post",&cell1[0].soma.v(0.5),3,1)
+
+grafico[0].flush()
+
+graphList[0].append(grafico[0])
+
+
+objref graficoshape
+graficoshape=new PlotShape()
+graficoshape.variable("soma","v(0.5)")
+//graficoshape.view(-594.956, -98.0373, 1260.25, 1188.42, 573, 0, 505.92, 592)
+graficoshape.exec_menu("Show Diam")
+graficoshape.exec_menu("Shape Plot")
+fast_flush_list.append(graficoshape)
+
+
+//Synapse control menu
+nrncontrolmenu()
+
+
+//setting up to save data to file
+create_recording(NUMBER_NEURONS)
+
+
+//Start Simulation
+//simulate()
+cvode.active(0)
+init()
+
+
+//Synaptic Stimulation Sequencies
+
+create_synaptic_stimulus(condi, tmax)
+
+
+///////////////////////
+//Save Data to Files//
+//////////////////////
+
+save_recording()
+
+
+/*
+/** Procedure linked to the Init & Run button */ 
+proc restart() {
+    cleanup()	
+
+    // make_plottingpanel()
+    create_stimulus(stepcurrent)
+
+    cell.synapses.update_synapses(synapse_plot)
+    simulate()
+
+    save_recording()
+}
+

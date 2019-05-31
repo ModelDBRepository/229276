@@ -1,0 +1,638 @@
+/*                                                                               
+Copyright (c) 2015 EPFL-BBP, All rights reserved.                                
+                                                                                 
+THIS SOFTWARE IS PROVIDED BY THE BLUE BRAIN PROJECT ``AS IS''                    
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,            
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR           
+PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE BLUE BRAIN PROJECT                 
+BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR           
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF             
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR                  
+BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,            
+WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE             
+OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN           
+IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.                                    
+                                                                                 
+This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
+To view a copy of this license, visit http://creativecommons.org/licenses/by-nc-sa/4.0/legalcode or send a letter to Creative Commons, 171
+Second Street, Suite 300, San Francisco, California, 94105, USA.                 
+*/ 
+
+/*                                                                               
+ * @file createsimulation.hoc                                                           
+ * @brief Set up the simulation                                
+ * @author Werner Van Geit @ BBP                                                 
+ * @date 2015                                                                    
+*/        
+
+//modified by Fabio Simoes de Souza @ UFABC, 2016
+
+load_file("nrngui.hoc")
+load_file("import3d.hoc")
+
+load_file("morphology.hoc")
+load_file("biophysics.hoc")
+load_file("template.hoc")
+
+//======================== settings ===================================
+
+//PARAMETERS 
+
+NUMBER_NEURONS=1  //number neurons per layer
+
+tmax=25000 //simulation time
+
+//Synaptic Stimulation Sequencies
+//sensory, motor, or re-afference sequencies
+//cond="1" //basal only -control-
+//cond="2a" //sensory only 1 pulse
+//cond="3a" //motor only 1 pulse
+//cond="4a" //motor with sensory re-afference 1 pulse
+//cond="2b" //sensory only 4 pulses
+//cond="3b" //motor only 4 pulses
+//cond="4b" //motor with sensory re-afference 4 pulses
+
+strdef condi //string
+condi="4b"
+
+//set poisson random seeds for presynaptic spikes
+if (strcmp(condi,"1") == 0) {
+RANDOM_SEED=1
+print RANDOM_SEED
+} else if (strcmp(condi,"2a") == 0) {
+RANDOM_SEED=2
+print RANDOM_SEED
+} else if (strcmp(condi,"3a") == 0) {
+RANDOM_SEED=3
+print RANDOM_SEED
+} else if (strcmp(condi,"4a") == 0) {
+RANDOM_SEED=4
+print RANDOM_SEED
+} else if (strcmp(condi,"2b") == 0) {
+RANDOM_SEED=5
+print RANDOM_SEED
+} else if (strcmp(condi,"3b") == 0) {
+RANDOM_SEED=6
+print RANDOM_SEED
+} else if (strcmp(condi,"4b") == 0) {
+RANDOM_SEED=7
+print RANDOM_SEED
+}
+
+//=================== creating cell object ===========================
+objref semente
+
+objref cell0[NUMBER_NEURONS]  //pre synaptic cells
+objref cell1[NUMBER_NEURONS]  //post synaptic cells
+
+
+proc create_cell() { local synapses_enabled
+
+synapses_enabled = $1
+semente = new Random($2)
+semente.uniform(0,1000000000)
+
+NUMBER_NEURONS = $3
+
+
+for i=0, NUMBER_NEURONS-1 {
+//print i
+semente_pick=int(semente.repick())
+    cell0[i] = new cADpyr232_L5_TTPC1_b6836fcf6f(synapses_enabled,semente_pick)
+
+semente_pick=int(semente.repick())
+    cell1[i] = new cADpyr232_L5_TTPC1_b6836fcf6f(synapses_enabled,semente_pick)
+}
+}
+
+////////////////////////////////////////
+//Setting up for Saving Spiking Events//
+///////////////////////////////////////
+
+//==================== recording settings ==========================
+
+objref Cell0MatrixS, Cell1MatrixS
+objref Cell0MatrixV, Cell1MatrixV
+
+objref Cell1Matrixgsyn0, Cell1Matrixgsyn1
+objref Cell1Matrixpsyn0, Cell1Matrixpsyn1
+
+objref sav_Cell0MatrixS,sav_Cell1MatrixS
+objref sav_Cell0MatrixV,sav_Cell1MatrixV
+
+objref sav_Cell1Matrixgsyn0,sav_Cell1Matrixgsyn1
+objref sav_Cell1Matrixpsyn0,sav_Cell1Matrixpsyn1
+
+objref time
+objref nc0, nil0, nc1, nil1
+
+proc create_recording() {
+
+NUMBER_NEURONS=$1
+
+//generate matrix and send the data to them
+
+Cell0MatrixS=new Matrix() 
+Cell1MatrixS=new Matrix() 
+Cell0MatrixV=new Matrix() 
+Cell1MatrixV=new Matrix() 
+
+Cell1Matrixgsyn0=new Matrix() 
+Cell1Matrixgsyn1=new Matrix() 
+Cell1Matrixpsyn0=new Matrix() 
+Cell1Matrixpsyn1=new Matrix() 
+
+sav_Cell0MatrixS=new File()
+sav_Cell1MatrixS=new File()
+sav_Cell0MatrixV=new File()
+sav_Cell1MatrixV=new File()
+
+sav_Cell1Matrixgsyn0=new File()
+sav_Cell1Matrixgsyn1=new File()
+sav_Cell1Matrixpsyn0=new File()
+sav_Cell1Matrixpsyn1=new File()
+
+//Open recording Files
+sav_Cell0MatrixS.wopen("hoc_recordings/Cell0MatrixS.dat")
+sav_Cell1MatrixS.wopen("hoc_recordings/Cell1MatrixS.dat")
+sav_Cell0MatrixV.wopen("hoc_recordings/Cell0MatrixV.dat")
+sav_Cell1MatrixV.wopen("hoc_recordings/Cell1MatrixV.dat")
+
+sav_Cell1Matrixgsyn0.wopen("hoc_recordings/Cell1Matrixgsyn0.dat")
+sav_Cell1Matrixgsyn1.wopen("hoc_recordings/Cell1Matrixgsyn1.dat")
+sav_Cell1Matrixpsyn0.wopen("hoc_recordings/Cell1Matrixpsyn0.dat")
+sav_Cell1Matrixpsyn1.wopen("hoc_recordings/Cell1Matrixpsyn1.dat")
+
+time = new Vector()
+time.record(&t, dt)
+
+for i=0, NUMBER_NEURONS-1 {
+//set voltage recording
+cell0[i].voltagem.record(&cell0[i].soma.v(0.5),dt)
+cell1[i].voltagem.record(&cell1[i].soma.v(0.5),dt)
+
+//set gsyn recording
+cell1[i].gsyn0.record(&cell1[i].sinapse0[0].g,dt)
+cell1[i].gsyn1.record(&cell1[i].sinapse1[0].g,dt)
+
+//set psyn recording
+cell1[i].psyn0.record(&cell1[i].sinapse0[0].peso,dt)
+cell1[i].psyn1.record(&cell1[i].sinapse1[0].peso,dt)
+
+//Fabio´s stuff
+//saving spiketimes
+cell0[i].soma cell0[i].nc = new NetCon(&cell0[i].soma.v(0.5),nil0)
+cell1[i].soma cell1[i].nc = new NetCon(&cell1[i].soma.v(0.5),nil1)
+
+cell0[i].nc.record(cell0[i].spiketimes)
+cell1[i].nc.record(cell1[i].spiketimes)
+}
+
+}
+
+//==================== stimulus settings ===========================
+
+//current stimulus
+objref step_stimulus[NUMBER_NEURONS]
+
+proc create_current_stimulus() {
+NUMBER_NEURONS = $1
+for i=0, NUMBER_NEURONS-1 {
+access cell0[i].soma
+step_stimulus[i] = new IClamp(0.5)
+step_stimulus[i].dur = 1000
+step_stimulus[i].del = 11000+1e4 
+step_stimulus[i].amp = 0.5 //nA 	
+}
+}
+
+//synaptic stimulus
+
+proc create_synaptic_stimulus() {
+
+//sensory, motor, or re-afference sequencies
+//cond="1" //basal only -control-
+//cond="2a" //sensory only 1 pulse
+//cond="3a" //motor only 1 pulse
+//cond="4a" //motor with sensory re-afference 1 pulse
+//cond="2b" //sensory only 4 pulses
+//cond="3b" //motor only 4 pulses
+//cond="4b" //motor with sensory re-afference 4 pulses
+
+strdef cond  //string
+cond = $s1
+
+tmax=$2
+
+//synapses index
+id1=19 //L5_TTP1
+id2=20 //L5_TTPC2
+id3=3 //L23_PC
+
+freq=2 //basal pre-synaptic firing freq
+
+tstop=1 //1 ms
+run() 
+
+print tstop
+
+if (strcmp(cond,"1") == 0) {
+print RANDOM_SEED
+
+cell0_synapse_on_off(id2,freq,1,NUMBER_NEURONS) // basal sensory stimulus on 
+cell1_synapse_on_off(id2,freq,1,NUMBER_NEURONS) // basal motor stimulus on 
+tstop=10000
+print tstop
+continuerun(tstop)//t=10000
+
+cell0_synapse_on_off(id1,50,0,NUMBER_NEURONS) // test stimulus on
+tstop=11000 
+continuerun(tstop) //t=11000
+
+cell0_synapse_on_off(id1,50,0,NUMBER_NEURONS) // test stimulus off
+tstop=tmax //run till tmax
+
+continuerun(tstop)
+
+} else if (strcmp(cond,"2a") == 0) {
+print RANDOM_SEED
+
+cell0_synapse_on_off(id2,freq,1,NUMBER_NEURONS) // basal sensory stimulus on 
+cell1_synapse_on_off(id2,freq,1,NUMBER_NEURONS) // basal motor stimulus on 
+tstop=1000 
+continuerun(tstop) //t=1000
+
+cell0_synapse_on_off(id1,50,1,NUMBER_NEURONS) // sensory stimulus on 
+tstop=2000 //run till tstop ms
+continuerun(tstop) //t=2000
+
+cell0_synapse_on_off(id1,50,0,NUMBER_NEURONS) // sensory stimulus off 
+tstop=10000 
+continuerun(tstop) //t=10000 ms
+
+cell0_synapse_on_off(id1,50,0,NUMBER_NEURONS) // test stimulus on 
+tstop=11000 
+continuerun(tstop)//t=11000
+
+cell0_synapse_on_off(id1,50,0,NUMBER_NEURONS) // test stimulus off
+tstop=tmax //run till tmax
+continuerun(tstop)
+
+} else if (strcmp(cond,"3a") == 0) {
+print RANDOM_SEED
+
+cell0_synapse_on_off(id2,freq,1,NUMBER_NEURONS) // basal sensory stimulus on 
+cell1_synapse_on_off(id2,freq,1,NUMBER_NEURONS) // basal motor stimulus on 
+tstop=1000 
+continuerun(tstop) //t=1000
+
+cell1_synapse_on_off(id2,50,1,NUMBER_NEURONS) // motor stimulus on 
+tstop=2000 //run till tstop ms
+continuerun(tstop) //t=2000
+
+cell1_synapse_on_off(id2,freq,1,NUMBER_NEURONS) // motor stimulus off
+tstop=10000 
+continuerun(tstop) //t=10000 ms
+
+cell0_synapse_on_off(id1,50,0,NUMBER_NEURONS) // test stimulus on 
+tstop=11000 
+continuerun(tstop)//t=11000
+
+cell0_synapse_on_off(id1,50,0,NUMBER_NEURONS) // test stimulus off
+tstop=tmax //run till tmax
+continuerun(tstop)
+
+} else if (strcmp(cond,"4a") == 0) {
+print RANDOM_SEED
+
+cell0_synapse_on_off(id2,freq,1,NUMBER_NEURONS) // basal sensory stimulus on 
+cell1_synapse_on_off(id2,freq,1,NUMBER_NEURONS) // basal motor stimulus on 
+tstop=1000
+continuerun(tstop) //t=1000
+
+cell1_synapse_on_off(id2,50,1,NUMBER_NEURONS) // motor stimulus on 
+tstop=1200 
+continuerun(tstop) //t=1200
+
+cell0_synapse_on_off(id1,50,1,NUMBER_NEURONS) // re-affer sensory stimulus on
+tstop=2000
+continuerun(tstop) //t=2000
+
+cell1_synapse_on_off(id2,freq,1,NUMBER_NEURONS) // motor stimulus off 
+tstop=2200
+continuerun(tstop) //t=2200
+
+cell0_synapse_on_off(id1,50,0,NUMBER_NEURONS) // re-affer sensory stimulus off
+tstop=10000 //pause between stimulus
+continuerun(tstop)
+
+cell0_synapse_on_off(id1,50,0,NUMBER_NEURONS) // test stimulus on 
+tstop=11000
+continuerun(tstop) //t=11000
+
+cell0_synapse_on_off(id1,50,0,NUMBER_NEURONS) // test stimulus off
+tstop=tmax //run till tmax
+continuerun(tstop)
+
+} else if (strcmp(cond,"2b") == 0) {
+print RANDOM_SEED
+
+cell0_synapse_on_off(id2,freq,1,NUMBER_NEURONS) // basal sensory stimulus on 
+cell1_synapse_on_off(id2,freq,1,NUMBER_NEURONS) // basal motor stimulus on 
+tstop=1000 
+continuerun(tstop) //t=1000
+
+cell0_synapse_on_off(id1,50,1,NUMBER_NEURONS) // sensory stimulus on 1
+tstop=2000 //run till tstop ms
+continuerun(tstop) //t=2000
+
+cell0_synapse_on_off(id1,50,0,NUMBER_NEURONS) // sensory stimulus off 
+tstop=3000 
+continuerun(tstop) //t=10000 ms
+
+cell0_synapse_on_off(id1,50,1,NUMBER_NEURONS) // sensory stimulus on 2
+tstop=4000 //run till tstop ms
+continuerun(tstop) //t=2000
+
+cell0_synapse_on_off(id1,50,0,NUMBER_NEURONS) // sensory stimulus off 
+tstop=5000 
+continuerun(tstop) //t=10000 ms
+
+cell0_synapse_on_off(id1,50,1,NUMBER_NEURONS) // sensory stimulus on 3
+tstop=6000 //run till tstop ms
+continuerun(tstop) //t=2000
+
+cell0_synapse_on_off(id1,50,0,NUMBER_NEURONS) // sensory stimulus off 
+tstop=7000 
+continuerun(tstop) //t=10000 ms
+
+cell0_synapse_on_off(id1,50,1,NUMBER_NEURONS) // sensory stimulus on 4
+tstop=8000 //run till tstop ms
+continuerun(tstop) //t=2000
+
+cell0_synapse_on_off(id1,50,0,NUMBER_NEURONS) // sensory stimulus off 
+tstop=9000 
+continuerun(tstop) //t=10000 ms
+
+
+cell0_synapse_on_off(id1,50,0,NUMBER_NEURONS) // sensory stimulus off 
+tstop=10000 
+continuerun(tstop) //t=10000 ms
+
+cell0_synapse_on_off(id1,50,0,NUMBER_NEURONS) // test stimulus on 
+tstop=11000 
+continuerun(tstop)//t=11000
+
+cell0_synapse_on_off(id1,50,0,NUMBER_NEURONS) // test stimulus off
+tstop=tmax //run till tmax
+continuerun(tstop)
+
+} else if (strcmp(cond,"3b") == 0) {
+
+print RANDOM_SEED
+
+cell0_synapse_on_off(id2,freq,1,NUMBER_NEURONS) // basal sensory stimulus on 
+cell1_synapse_on_off(id2,freq,1,NUMBER_NEURONS) // basal motor stimulus on 
+tstop=1000 
+continuerun(tstop) //t=1000
+
+cell1_synapse_on_off(id2,50,1,NUMBER_NEURONS) // motor stimulus on 1
+tstop=2000 //run till tstop ms
+continuerun(tstop) //t=2000
+
+cell1_synapse_on_off(id2,freq,1,NUMBER_NEURONS) // motor stimulus off
+tstop=3000 
+continuerun(tstop) //t=10000 ms
+
+cell1_synapse_on_off(id2,50,1,NUMBER_NEURONS) // motor stimulus on 2
+tstop=4000 //run till tstop ms
+continuerun(tstop) //t=2000
+
+cell1_synapse_on_off(id2,freq,1,NUMBER_NEURONS) // motor stimulus off
+tstop=5000 
+continuerun(tstop) //t=10000 ms
+
+cell1_synapse_on_off(id2,50,1,NUMBER_NEURONS) // motor stimulus on 3
+tstop=6000 //run till tstop ms
+continuerun(tstop) //t=2000
+
+cell1_synapse_on_off(id2,freq,1,NUMBER_NEURONS) // motor stimulus off
+tstop=7000 
+continuerun(tstop) //t=10000 ms
+
+cell1_synapse_on_off(id2,50,1,NUMBER_NEURONS) // motor stimulus on 4
+tstop=8000 //run till tstop ms
+continuerun(tstop) //t=2000
+
+cell1_synapse_on_off(id2,freq,1,NUMBER_NEURONS) // motor stimulus off
+tstop=9000 
+continuerun(tstop) //t=10000 ms
+
+cell1_synapse_on_off(id2,freq,1,NUMBER_NEURONS) // motor stimulus off
+tstop=10000 
+continuerun(tstop) //t=10000 ms
+
+
+cell0_synapse_on_off(id1,50,0,NUMBER_NEURONS) // test stimulus on 
+tstop=11000 
+continuerun(tstop)//t=11000
+
+cell0_synapse_on_off(id1,50,0,NUMBER_NEURONS) // test stimulus off
+tstop=tmax //run till tmax
+continuerun(tstop)
+
+} else (strcmp(cond,"4b") == 0) {
+
+print RANDOM_SEED
+
+cell0_synapse_on_off(id2,freq,1,NUMBER_NEURONS) // basal sensory stimulus on 
+cell1_synapse_on_off(id2,freq,1,NUMBER_NEURONS) // basal motor stimulus on 
+tstop=1000+1e4
+continuerun(tstop) //t=1000
+
+cell1_synapse_on_off(id2,50,1,NUMBER_NEURONS) // motor stimulus on 1
+tstop=1200+1e4 
+continuerun(tstop) //t=1200
+
+cell0_synapse_on_off(id1,50,1,NUMBER_NEURONS) // re-affer sensory stimulus on
+tstop=2000+1e4
+continuerun(tstop) //t=2000
+
+cell1_synapse_on_off(id2,freq,1,NUMBER_NEURONS) // motor stimulus off 
+tstop=2200+1e4
+continuerun(tstop) //t=2200
+
+cell0_synapse_on_off(id1,50,0,NUMBER_NEURONS) // re-affer sensory stimulus off
+tstop=3000+1e4 //pause between stimulus
+continuerun(tstop)
+
+
+cell1_synapse_on_off(id2,50,1,NUMBER_NEURONS) // motor stimulus on 2
+tstop=3200+1e4 
+continuerun(tstop) //t=1200
+
+cell0_synapse_on_off(id1,50,1,NUMBER_NEURONS) // re-affer sensory stimulus on
+tstop=4000+1e4
+continuerun(tstop) //t=2000
+
+cell1_synapse_on_off(id2,freq,1,NUMBER_NEURONS) // motor stimulus off 
+tstop=4200+1e4
+continuerun(tstop) //t=2200
+
+cell0_synapse_on_off(id1,50,0,NUMBER_NEURONS) // re-affer sensory stimulus off
+tstop=5000+1e4 //pause between stimulus
+continuerun(tstop)
+
+
+cell1_synapse_on_off(id2,50,1,NUMBER_NEURONS) // motor stimulus on 3
+tstop=5200+1e4 
+continuerun(tstop) //t=1200
+
+cell0_synapse_on_off(id1,50,1,NUMBER_NEURONS) // re-affer sensory stimulus on
+tstop=6000+1e4
+continuerun(tstop) //t=2000
+
+cell1_synapse_on_off(id2,freq,1,NUMBER_NEURONS) // motor stimulus off 
+tstop=6200+1e4
+continuerun(tstop) //t=2200
+
+cell0_synapse_on_off(id1,50,0,NUMBER_NEURONS) // re-affer sensory stimulus off
+tstop=7000+1e4 //pause between stimulus
+continuerun(tstop)
+
+
+cell1_synapse_on_off(id2,50,1,NUMBER_NEURONS) // motor stimulus on 4
+tstop=7200+1e4 
+continuerun(tstop) //t=1200
+
+cell0_synapse_on_off(id1,50,1,NUMBER_NEURONS) // re-affer sensory stimulus on
+tstop=8000+1e4
+continuerun(tstop) //t=2000
+
+cell1_synapse_on_off(id2,freq,1,NUMBER_NEURONS) // motor stimulus off 
+tstop=8200+1e4
+continuerun(tstop) //t=2200
+
+cell0_synapse_on_off(id1,50,0,NUMBER_NEURONS) // re-affer sensory stimulus off
+tstop=9000+1e4 //pause between stimulus
+continuerun(tstop)
+
+cell0_synapse_on_off(id1,50,0,NUMBER_NEURONS) // re-affer sensory stimulus off
+tstop=10000+1e4 //pause between stimulus
+continuerun(tstop)
+
+
+cell0_synapse_on_off(id1,50,0,NUMBER_NEURONS) // test stimulus on 
+tstop=11000+1e4
+continuerun(tstop) //t=11000
+
+cell0_synapse_on_off(id1,50,0,NUMBER_NEURONS) // test stimulus off
+tstop=tmax //run till tmax
+continuerun(tstop)
+
+}
+
+}
+
+//turn synapses on-off
+//id, freq, 0 (on) or 1(off)
+proc cell0_synapse_on_off() {local id
+NUMBER_NEURONS=$4
+for i=0, NUMBER_NEURONS-1 {
+id=cell0[i].synapses.pre_mtypes.x[$1]
+cell0[i].synapses.active_pre_mtypes.x[id]=$3
+cell0[i].synapses.pre_mtype_freqs.x[id]=$2
+cell0[i].synapses.update_synapses(synapse_plot)
+}
+}
+
+//id, freq, 0 (on) or 1(off)
+proc cell1_synapse_on_off() {local id
+NUMBER_NEURONS=$4
+for i=0, NUMBER_NEURONS-1 {
+id=cell1[i].synapses.pre_mtypes.x[$1]
+cell1[i].synapses.active_pre_mtypes.x[id]=$3
+cell1[i].synapses.pre_mtype_freqs.x[id]=$2
+cell1[i].synapses.update_synapses(synapse_plot)
+}
+}
+
+
+//============================= simulation ================================
+
+proc simulate() {
+    cvode.active(0)
+
+    run()
+}
+
+//============================= saving results ============================
+
+objref tempo
+objref savtime
+
+proc save_recording() {
+
+///////////////////////
+//Save Data to Files//
+//////////////////////
+
+//save time
+savtime=new File()
+savtime.wopen("hoc_recordings/time.dat")
+
+time.printf(savtime)
+savtime.close()
+
+//save spikes and voltage
+Cell0MatrixS.resize(time.size(),NUMBER_NEURONS) 
+Cell1MatrixS.resize(time.size(),NUMBER_NEURONS) 
+Cell0MatrixV.resize(time.size(),NUMBER_NEURONS) 
+Cell1MatrixV.resize(time.size(),NUMBER_NEURONS) 
+
+for i = 0, NUMBER_NEURONS-1 {
+Cell0MatrixS.setcol(i,cell0[i].spiketimes)  
+Cell1MatrixS.setcol(i,cell1[i].spiketimes)  
+Cell0MatrixV.setcol(i,cell0[i].voltagem)  
+Cell1MatrixV.setcol(i,cell1[i].voltagem)  
+}
+
+//record Vectors to File	
+Cell0MatrixS.fprint(sav_Cell0MatrixS," %g")
+Cell1MatrixS.fprint(sav_Cell1MatrixS," %g")
+Cell0MatrixV.fprint(sav_Cell0MatrixV," %g")
+Cell1MatrixV.fprint(sav_Cell1MatrixV," %g")
+
+//Close Files	
+sav_Cell0MatrixS.close()
+sav_Cell1MatrixS.close()
+sav_Cell0MatrixV.close()
+sav_Cell1MatrixV.close()
+
+
+//save synaptic conductances and weights
+Cell1Matrixgsyn0.resize(time.size(),NUMBER_NEURONS) 
+Cell1Matrixgsyn1.resize(time.size(),NUMBER_NEURONS) 
+Cell1Matrixpsyn0.resize(time.size(),NUMBER_NEURONS) 
+Cell1Matrixpsyn1.resize(time.size(),NUMBER_NEURONS) 
+
+for i = 0, NUMBER_NEURONS-1 {
+Cell1Matrixgsyn0.setcol(i,cell1[i].gsyn0)  
+Cell1Matrixgsyn1.setcol(i,cell1[i].gsyn1)  
+Cell1Matrixpsyn0.setcol(i,cell1[i].psyn0)  
+Cell1Matrixpsyn1.setcol(i,cell1[i].psyn1)  
+}
+
+//record Vectors to File	
+Cell1Matrixgsyn0.fprint(sav_Cell1Matrixgsyn0," %g")
+Cell1Matrixgsyn1.fprint(sav_Cell1Matrixgsyn1," %g")
+Cell1Matrixpsyn0.fprint(sav_Cell1Matrixpsyn0," %g")
+Cell1Matrixpsyn1.fprint(sav_Cell1Matrixpsyn1," %g")
+
+//Close Files	
+sav_Cell1Matrixgsyn0.close()
+sav_Cell1Matrixgsyn1.close()
+sav_Cell1Matrixpsyn0.close()
+sav_Cell1Matrixpsyn1.close()
+}
+
