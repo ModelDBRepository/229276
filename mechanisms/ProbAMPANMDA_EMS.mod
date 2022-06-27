@@ -107,11 +107,16 @@ VERBATIM
 #include<stdio.h>
 #include<math.h>
 
+#ifndef NRN_VERSION_GTEQ_8_2_0
 double nrn_random_pick(void* r);
 void* nrn_random_arg(int argpos);
+#define RANDCAST
+#else
+#define RANDCAST (Rand*)
+#endif
 
 ENDVERBATIM
-  
+
 
 ASSIGNED {
 
@@ -131,9 +136,9 @@ ASSIGNED {
         rng
 
 	: Recording these three, you can observe full state of model
-	: tsyn_fac gives you presynaptic times, Rstate gives you 
+	: tsyn_fac gives you presynaptic times, Rstate gives you
         : state transitions,
-        : u gives you the "release probability" at transitions 
+        : u gives you the "release probability" at transitions
         : (attention: u is event based based, so only valid at incoming events)
 	Rstate (1) : recovered state {0=unrecovered, 1=recovered}
 	tsyn_fac (ms) : the time of the last spike
@@ -156,19 +161,19 @@ INITIAL{
 	Rstate=1
 	tsyn_fac=0
 	u=u0
-        
+
         A_AMPA = 0
         B_AMPA = 0
-        
+
         A_NMDA = 0
         B_NMDA = 0
-        
+
         tp_AMPA = (tau_r_AMPA*tau_d_AMPA)/(tau_d_AMPA-tau_r_AMPA)*log(tau_d_AMPA/tau_r_AMPA) :time to peak of the conductance
         tp_NMDA = (tau_r_NMDA*tau_d_NMDA)/(tau_d_NMDA-tau_r_NMDA)*log(tau_d_NMDA/tau_r_NMDA) :time to peak of the conductance
-        
+
         factor_AMPA = -exp(-tp_AMPA/tau_r_AMPA)+exp(-tp_AMPA/tau_d_AMPA) :AMPA Normalization factor - so that when t = tp_AMPA, gsyn = gpeak
         factor_AMPA = 1/factor_AMPA
-        
+
         factor_NMDA = -exp(-tp_NMDA/tau_r_NMDA)+exp(-tp_NMDA/tau_d_NMDA) :NMDA Normalization factor - so that when t = tp_NMDA, gsyn = gpeak
         factor_NMDA = 1/factor_NMDA
 
@@ -205,7 +210,7 @@ NET_RECEIVE (weight,weight_AMPA, weight_NMDA, Psurv, tsyn (ms)){
 	: Locals:
 	: Psurv - survival probability of unrecovered state
 	: tsyn - time since last surival evaluation.
-	
+
         INITIAL{
                 tsyn=t
         }
@@ -221,11 +226,11 @@ ENDVERBATIM
         if (Fac > 0) {
                 u = u*exp(-(t - tsyn_fac)/Fac) :update facilitation variable if Fac>0 Eq. 2 in Fuhrmann et al.
            } else {
-                  u = Use  
-           } 
+                  u = Use
+           }
            if(Fac > 0){
                   u = u + Use*(1-u) :update facilitation variable if Fac>0 Eq. 2 in Fuhrmann et al.
-           }    
+           }
 
 	   : tsyn_fac knows about all spikes, not only those that released
 	   : i.e. each spike can increase the u, regardless of recovered state.
@@ -238,7 +243,7 @@ ENDVERBATIM
 	          Psurv = exp(-(t-tsyn)/Dep)
 		  result = urand()
 		  if (result>Psurv) {
-		         Rstate = 1     : recover      
+		         Rstate = 1     : recover
 
                          if( verboseLevel > 0 ) {
                              printf( "Recovered! %f at time %g: Psurv = %g, urand=%g\n", synapseID, t, Psurv, result )
@@ -252,8 +257,8 @@ ENDVERBATIM
                              printf( "Failed to recover! %f at time %g: Psurv = %g, urand=%g\n", synapseID, t, Psurv, result )
                          }
 		  }
-           }	   
-	   
+           }
+
 	   if (Rstate == 1) {
    	          result = urand()
 		  if (result<u) {
@@ -264,11 +269,11 @@ ENDVERBATIM
                          B_AMPA = B_AMPA + weight_AMPA*factor_AMPA
                          A_NMDA = A_NMDA + weight_NMDA*factor_NMDA
                          B_NMDA = B_NMDA + weight_NMDA*factor_NMDA
-                         
+
                          if( verboseLevel > 0 ) {
                              printf( "Release! %f at time %g: vals %g %g %g %g\n", synapseID, t, A_AMPA, weight_AMPA, factor_AMPA, weight )
                          }
-		  		  
+
 		  }
 		  else {
 		         if( verboseLevel > 0 ) {
@@ -308,7 +313,7 @@ VERBATIM
                 : each instance. However, the corresponding hoc Random
                 : distribution MUST be set to Random.negexp(1)
                 */
-                value = nrn_random_pick(_p_rng);
+                value = nrn_random_pick(RANDCAST _p_rng);
                 //printf("random stream for this simulation = %lf\n",value);
                 return value;
         }else{
@@ -317,7 +322,7 @@ ENDVERBATIM
                 : independent of nhost or which host this instance is on
                 : is desired, since each instance on this cpu draws from
                 : the same stream
-                value = scop_random(1)
+                value = scop_random()
 VERBATIM
         }
 ENDVERBATIM
