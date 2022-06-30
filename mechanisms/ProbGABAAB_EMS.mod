@@ -105,11 +105,16 @@ VERBATIM
 #include<stdio.h>
 #include<math.h>
 
+#ifndef NRN_VERSION_GTEQ_8_2_0
 double nrn_random_pick(void* r);
 void* nrn_random_arg(int argpos);
+#define RANDCAST
+#else
+#define RANDCAST (Rand*)
+#endif
 
 ENDVERBATIM
-  
+
 
 ASSIGNED {
 	v (mV)
@@ -128,9 +133,9 @@ ASSIGNED {
         rng
 
        : Recording these three, you can observe full state of model
-       : tsyn_fac gives you presynaptic times, Rstate gives you 
+       : tsyn_fac gives you presynaptic times, Rstate gives you
 	 : state transitions,
-	 : u gives you the "release probability" at transitions 
+	 : u gives you the "release probability" at transitions
 	 : (attention: u is event based based, so only valid at incoming events)
        Rstate (1) : recovered state {0=unrecovered, 1=recovered}
        tsyn_fac (ms) : the time of the last spike
@@ -153,22 +158,22 @@ INITIAL{
 	Rstate=1
 	tsyn_fac=0
 	u=u0
-        
+
         A_GABAA = 0
         B_GABAA = 0
-        
+
         A_GABAB = 0
         B_GABAB = 0
-        
+
         tp_GABAA = (tau_r_GABAA*tau_d_GABAA)/(tau_d_GABAA-tau_r_GABAA)*log(tau_d_GABAA/tau_r_GABAA) :time to peak of the conductance
         tp_GABAB = (tau_r_GABAB*tau_d_GABAB)/(tau_d_GABAB-tau_r_GABAB)*log(tau_d_GABAB/tau_r_GABAB) :time to peak of the conductance
-        
+
         factor_GABAA = -exp(-tp_GABAA/tau_r_GABAA)+exp(-tp_GABAA/tau_d_GABAA) :GABAA Normalization factor - so that when t = tp_GABAA, gsyn = gpeak
         factor_GABAA = 1/factor_GABAA
-        
+
         factor_GABAB = -exp(-tp_GABAB/tau_r_GABAB)+exp(-tp_GABAB/tau_d_GABAB) :GABAB Normalization factor - so that when t = tp_GABAB, gsyn = gpeak
         factor_GABAB = 1/factor_GABAB
-        
+
         A_GABAA_step = exp(dt*(( - 1.0 ) / tau_r_GABAA))
         B_GABAA_step = exp(dt*(( - 1.0 ) / tau_d_GABAA))
         A_GABAB_step = exp(dt*(( - 1.0 ) / tau_r_GABAB))
@@ -177,9 +182,9 @@ INITIAL{
 
 BREAKPOINT {
 	SOLVE state
-	
+
         g_GABAA = gmax*(B_GABAA-A_GABAA) :compute time varying conductance as the difference of state variables B_GABAA and A_GABAA
-        g_GABAB = gmax*(B_GABAB-A_GABAB) :compute time varying conductance as the difference of state variables B_GABAB and A_GABAB 
+        g_GABAB = gmax*(B_GABAB-A_GABAB) :compute time varying conductance as the difference of state variables B_GABAB and A_GABAB
         g = g_GABAA + g_GABAB
         i_GABAA = g_GABAA*(v-e_GABAA) :compute the GABAA driving force based on the time varying conductance, membrane potential, and GABAA reversal
         i_GABAB = g_GABAB*(v-e_GABAB) :compute the GABAB driving force based on the time varying conductance, membrane potential, and GABAB reversal
@@ -218,11 +223,11 @@ ENDVERBATIM
         if (Fac > 0) {
                 u = u*exp(-(t - tsyn_fac)/Fac) :update facilitation variable if Fac>0 Eq. 2 in Fuhrmann et al.
            } else {
-                  u = Use  
-           } 
+                  u = Use
+           }
            if(Fac > 0){
                   u = u + Use*(1-u) :update facilitation variable if Fac>0 Eq. 2 in Fuhrmann et al.
-           }    
+           }
 
 	   : tsyn_fac knows about all spikes, not only those that released
 	   : i.e. each spike can increase the u, regardless of recovered state.
@@ -234,7 +239,7 @@ ENDVERBATIM
 	          Psurv = exp(-(t-tsyn)/Dep)
 		  result = urand()
 		  if (result>Psurv) {
-		         Rstate = 1     : recover      
+		         Rstate = 1     : recover
 
                          if( verboseLevel > 0 ) {
                              printf( "Recovered! %f at time %g: Psurv = %g, urand=%g\n", synapseID, t, Psurv, result )
@@ -248,8 +253,8 @@ ENDVERBATIM
                              printf( "Failed to recover! %f at time %g: Psurv = %g, urand=%g\n", synapseID, t, Psurv, result )
                          }
 		  }
-           }	   
-	   
+           }
+
 	   if (Rstate == 1) {
    	          result = urand()
 		  if (result<u) {
@@ -261,11 +266,11 @@ ENDVERBATIM
                          B_GABAA = B_GABAA + weight_GABAA*factor_GABAA
                          A_GABAB = A_GABAB + weight_GABAB*factor_GABAB
                          B_GABAB = B_GABAB + weight_GABAB*factor_GABAB
-                         
+
                          if( verboseLevel > 0 ) {
                              printf( "Release! %f at time %g: vals %g %g %g \n", synapseID, t, A_GABAA, weight_GABAA, factor_GABAA )
                          }
-		  		  
+
 		  }
 		  else {
 		         if( verboseLevel > 0 ) {
@@ -276,7 +281,7 @@ ENDVERBATIM
 
 	   }
 
-        
+
 
 }
 
@@ -307,7 +312,7 @@ VERBATIM
                 : each instance. However, the corresponding hoc Random
                 : distribution MUST be set to Random.uniform(1)
                 */
-                value = nrn_random_pick(_p_rng);
+                value = nrn_random_pick(RANDCAST _p_rng);
                 //printf("random stream for this simulation = %lf\n",value);
                 return value;
         }else{
@@ -316,7 +321,7 @@ ENDVERBATIM
                 : independent of nhost or which host this instance is on
                 : is desired, since each instance on this cpu draws from
                 : the same stream
-                urand = scop_random(1)
+                urand = scop_random()
 VERBATIM
         }
 ENDVERBATIM

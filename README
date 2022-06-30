@@ -46,3 +46,7 @@ How to use the ME-type model GUI
 ================================
 
 There are three panels that show the output of the model. One is a graph with the membrane voltage recorded in the soma (units: ms and mV), the two other panels have a representation of the cell's morphology. The sections in the first morphology change color dependending on their membrane voltage during the simulation. When synaptic input is present, the second morphology will show the location of the activated synapses.
+
+Changelog
+===
+2022-05: Updated MOD files to contain valid C++ and be compatible with the upcoming versions 8.2 and 9.0 of NEURON.
