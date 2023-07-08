@@ -179,7 +179,7 @@ cell1[i].gsyn1.record(&cell1[i].sinapse1[0].g,dt)
 cell1[i].psyn0.record(&cell1[i].sinapse0[0].peso,dt)
 cell1[i].psyn1.record(&cell1[i].sinapse1[0].peso,dt)
 
-//Fabio´s stuff
+//FabioÂ´s stuff
 //saving spiketimes
 cell0[i].soma cell0[i].nc = new NetCon(&cell0[i].soma.v(0.5),nil0)
 cell1[i].soma cell1[i].nc = new NetCon(&cell1[i].soma.v(0.5),nil1)
