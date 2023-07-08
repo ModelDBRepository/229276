@@ -50,7 +50,7 @@ begintemplate cADpyr232_L5_TTPC1_b6836fcf6f
   strdef tstr
   objref rngList, rng
 
-//Fabio´s Stuff
+//FabioÂ´s Stuff
   public nclist
   objectvar nclist
   public sinapse0,sinapse1,sinapse2
@@ -72,11 +72,11 @@ begintemplate cADpyr232_L5_TTPC1_b6836fcf6f
 proc init() { local synapses_enabled
     synapses_enabled = $1
 
-	nclist=new List() //Fabio´s Stuff
-	randomseed = $2 //Fabio´s Stuff
-	spiketimes=new Vector() //Fabio´s Stuff
-	lastspikecount=0 //Fabio´s Stuff
-	voltagem=new Vector() //Fabio´s Stuff
+	nclist=new List() //FabioÂ´s Stuff
+	randomseed = $2 //FabioÂ´s Stuff
+	spiketimes=new Vector() //FabioÂ´s Stuff
+	lastspikecount=0 //FabioÂ´s Stuff
+	voltagem=new Vector() //FabioÂ´s Stuff
 	x=y=z=0 //only change via position
      gsyn0=new Vector()
      gsyn1=new Vector()
@@ -123,7 +123,7 @@ proc init() { local synapses_enabled
 create soma[1], dend[1], apic[1], axon[1]
 
 
-//Fabio´s stuff
+//FabioÂ´s stuff
 proc position() {local i
   access soma 
 for i = 0, n3d()-1 {
