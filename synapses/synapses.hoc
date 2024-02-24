@@ -337,7 +337,8 @@ proc load_synapses() { local isynapse, nsynapses, ncols, synapse_id, \
             netstim.interval = 100
             netstim.number = 1e20
             netstim.noise = 1
-		 netstim.seed(randomseed) //Fabio´s Stuff
+//		 netstim.seed(randomseed) //Fabios Stuff
+            netstim.noiseFromRandom123(randomseed, 0, 0)
             netstim_list.append(netstim)
             pre_mtype_netstimlists.o(pre_mtype).append(netstim)
             pre_cell_ids.append(pre_cell_id)
