@@ -50,3 +50,6 @@ There are three panels that show the output of the model. One is a graph with th
 Changelog
 ===
 2022-05: Updated MOD files to contain valid C++ and be compatible with the upcoming versions 8.2 and 9.0 of NEURON.
+
+20240226 Replace NetStim.seed with NetStim.noiseFromRandom123.<br>
+    This gives result identity between 8.2 and 9.0
